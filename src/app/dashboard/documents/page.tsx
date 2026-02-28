@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { colors } from "../../../lib/colors"
 import { listDocuments, uploadDocument, getDocumentDownloadUrl, getDocumentThumbnailUrls, deleteDocument, LimitError, type Document } from "../../../lib/documents"
-import { generateThumbnail } from "../../../lib/pdf-thumbnail"
 import { getUserTier, getLimits } from "../../../lib/limits"
 
 const fontFamily = `"Epilogue", sans-serif`
@@ -708,6 +707,7 @@ export default function DocumentsPage() {
       // Generate thumbnail from the PDF before uploading
       let thumbnailBlob: Blob | undefined
       try {
+        const { generateThumbnail } = await import("../../../lib/pdf-thumbnail")
         thumbnailBlob = await generateThumbnail(file)
       } catch {
         // Non-critical — upload proceeds without thumbnail
