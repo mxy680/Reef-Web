@@ -620,6 +620,16 @@ export default function DocumentsPage() {
         const urls = await getDocumentThumbnailUrls(data.map((d) => d.id))
         setThumbnails((prev) => ({ ...prev, ...urls }))
       }
+
+      // Trigger server-side completion check for any processing documents
+      const processing = data.filter((d) => d.status === "processing")
+      for (const doc of processing) {
+        fetch("/api/documents/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ documentId: doc.id }),
+        }).catch(() => {})  // fire-and-forget; next poll picks up status
+      }
     } catch (err) {
       console.error("Failed to fetch documents:", err)
     } finally {
