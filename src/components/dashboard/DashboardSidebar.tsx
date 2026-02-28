@@ -74,6 +74,9 @@ const NAV_ITEMS = [
   { href: "/dashboard/courses", label: "Courses", icon: <CoursesIcon /> },
   { href: "/dashboard/analytics", label: "Analytics", icon: <AnalyticsIcon /> },
   { href: "/dashboard/reef", label: "My Reef", icon: <ReefIcon /> },
+]
+
+const BOTTOM_NAV_ITEMS = [
   { href: "/dashboard/billing", label: "Billing", icon: <BillingIcon /> },
   { href: "/dashboard/settings", label: "Settings", icon: <SettingsIcon /> },
 ]
@@ -270,6 +273,15 @@ export default function DashboardSidebar() {
       {/* Nav */}
       <nav style={{ flex: 1, padding: collapsed ? "12px 10px 0" : "12px 14px 0", display: "flex", flexDirection: "column", gap: 6 }}>
         {NAV_ITEMS.map((item) => (
+          <NavItem key={item.href} {...item} collapsed={collapsed} />
+        ))}
+
+        {/* Divider */}
+        <div style={{ padding: collapsed ? "4px 0" : "4px 14px" }}>
+          <div style={{ height: 1, backgroundColor: colors.gray200 }} />
+        </div>
+
+        {BOTTOM_NAV_ITEMS.map((item) => (
           <NavItem key={item.href} {...item} collapsed={collapsed} />
         ))}
       </nav>
