@@ -54,7 +54,7 @@ function AlertIcon() {
 
 // ─── Dropdown Menu ────────────────────────────────────────
 
-function DropdownMenu({ onDelete, onClose }: { onDelete: () => void; onClose: () => void }) {
+function DropdownMenu({ onDelete, onRetry, onClose }: { onDelete: () => void; onRetry?: () => void; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -85,6 +85,29 @@ function DropdownMenu({ onDelete, onClose }: { onDelete: () => void; onClose: ()
         minWidth: 120,
       }}
     >
+      {onRetry && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRetry(); onClose() }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = colors.gray100)}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+          style={{
+            display: "block",
+            width: "100%",
+            padding: "8px 14px",
+            background: "none",
+            border: "none",
+            fontFamily,
+            fontWeight: 600,
+            fontSize: 13,
+            letterSpacing: "-0.04em",
+            color: colors.black,
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          Retry
+        </button>
+      )}
       <button
         onClick={(e) => { e.stopPropagation(); onDelete(); onClose() }}
         onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#FDECEA")}
@@ -112,7 +135,7 @@ function DropdownMenu({ onDelete, onClose }: { onDelete: () => void; onClose: ()
 
 // ─── Document Thumbnail ──────────────────────────────────
 
-function DocumentThumbnail({ status, thumbnailUrl }: { status: Document["status"]; thumbnailUrl?: string }) {
+function DocumentThumbnail({ status, thumbnailUrl, errorMessage }: { status: Document["status"]; thumbnailUrl?: string; errorMessage?: string | null }) {
   return (
     <div
       style={{
@@ -178,7 +201,10 @@ function DocumentThumbnail({ status, thumbnailUrl }: { status: Document["status"
       )}
 
       {status === "failed" && (
-        <div style={{ position: "relative", zIndex: 1 }}>
+        <div
+          title={errorMessage || "Processing failed"}
+          style={{ position: "relative", zIndex: 1, cursor: "help" }}
+        >
           <AlertIcon />
         </div>
       )}
@@ -260,12 +286,14 @@ function DocumentCard({
   index,
   thumbnailUrl,
   onDelete,
+  onRetry,
   onClick,
 }: {
   doc: Document
   index: number
   thumbnailUrl?: string
   onDelete: (d: Document) => void
+  onRetry: (d: Document) => void
   onClick: (d: Document) => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -335,6 +363,7 @@ function DocumentCard({
           {menuOpen && (
             <DropdownMenu
               onDelete={() => onDelete(doc)}
+              onRetry={doc.status === "failed" ? () => onRetry(doc) : undefined}
               onClose={() => setMenuOpen(false)}
             />
           )}
@@ -343,7 +372,7 @@ function DocumentCard({
 
       {/* Thumbnail */}
       <div style={{ padding: "14px 14px 0" }}>
-        <DocumentThumbnail status={doc.status} thumbnailUrl={thumbnailUrl} />
+        <DocumentThumbnail status={doc.status} thumbnailUrl={thumbnailUrl} errorMessage={doc.error_message} />
       </div>
 
       {/* Info */}
@@ -365,12 +394,14 @@ function DocumentCard({
           {displayName}
         </div>
         <div
+          title={doc.status === "failed" && doc.error_message ? doc.error_message : undefined}
           style={{
             fontFamily,
             fontWeight: 500,
             fontSize: 11,
             letterSpacing: "-0.04em",
             color: doc.status === "failed" ? "#C62828" : doc.status === "processing" ? colors.primary : colors.gray500,
+            cursor: doc.status === "failed" ? "help" : undefined,
           }}
         >
           {statusLabel()}
@@ -728,6 +759,28 @@ export default function DocumentsPage() {
     }
   }
 
+  async function handleRetry(doc: Document) {
+    // Optimistically set status back to processing
+    setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, status: "processing" as const, error_message: null } : d))
+    setToast("Retrying document processing...")
+
+    try {
+      const res = await fetch("/api/documents/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentId: doc.id }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: "Retry failed" }))
+        setToast(body.error || "Retry failed")
+        await fetchDocuments()
+      }
+    } catch {
+      setToast("Retry failed — server unreachable")
+      await fetchDocuments()
+    }
+  }
+
   return (
     <>
       <ShimmerStyle />
@@ -852,6 +905,7 @@ export default function DocumentsPage() {
                 index={i}
                 thumbnailUrl={thumbnails[doc.id]}
                 onDelete={setDeleteTarget}
+                onRetry={handleRetry}
                 onClick={handleCardClick}
               />
             ))}

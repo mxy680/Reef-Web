@@ -51,6 +51,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 })
     }
 
+    // Reset status to processing (important for retries of failed documents)
+    await serviceClient
+      .from("documents")
+      .update({ status: "processing", error_message: null })
+      .eq("id", documentId)
+      .eq("user_id", user.id)
+
     // Download original PDF from Supabase Storage
     const storagePath = `${user.id}/${documentId}/original.pdf`
     const { data: fileData, error: downloadError } = await supabase.storage
